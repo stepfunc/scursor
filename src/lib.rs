@@ -51,5 +51,6 @@ clippy::all
     bare_trait_objects
 )]
 
-/// api for reading binary data
-pub mod read;
+mod read;
+
+pub use read::*;
