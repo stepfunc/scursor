@@ -67,7 +67,9 @@ impl<'a> ReadCursor<'a> {
 /// little-endian read routines
 impl<'a> ReadCursor<'a> {
     pub fn read_u16_le(&mut self) -> Result<u16, ReadError> {
-        Ok((self.read_u8()? as u16) | (self.read_u8()? as u16) << 8)
+        let low = self.read_u8()? as u16;
+        let high = self.read_u8()? as u16;
+        Ok(high << 8 | low)
     }
 
     pub fn read_i16_le(&mut self) -> Result<i16, ReadError> {
@@ -75,7 +77,9 @@ impl<'a> ReadCursor<'a> {
     }
 
     pub fn read_u32_le(&mut self) -> Result<u32, ReadError> {
-        Ok((self.read_u16_le()?) as u32 | ((self.read_u16_le()? as u32) << 16))
+        let low = self.read_u16_le()? as u32;
+        let high = self.read_u16_le()? as u32;
+        Ok(high << 16 | low)
     }
 
     pub fn read_i32_le(&mut self) -> Result<i32, ReadError> {
@@ -83,17 +87,16 @@ impl<'a> ReadCursor<'a> {
     }
 
     pub fn read_u48_le(&mut self) -> Result<u64, ReadError> {
-        let low = self.read_u32_le()?;
-        let high = self.read_u16_le()?;
-
-        Ok((high as u64) << 32 | (low as u64))
+        let low = self.read_u32_le()? as u64;
+        let high = self.read_u16_le()? as u64;
+        Ok(high << 32 | low)
     }
 
     pub fn read_u64_le(&mut self) -> Result<u64, ReadError> {
-        let low = self.read_u32_le()?;
-        let high = self.read_u32_le()?;
+        let low = self.read_u32_le()? as u64;
+        let high = self.read_u32_le()? as u64;
 
-        Ok((high as u64) << 32 | (low as u64))
+        Ok(high << 32 | low)
     }
 
     pub fn read_i64_le(&mut self) -> Result<i64, ReadError> {
@@ -106,6 +109,39 @@ impl<'a> ReadCursor<'a> {
 
     pub fn read_f64_le(&mut self) -> Result<f64, ReadError> {
         Ok(f64::from_bits(self.read_u64_le()?))
+    }
+}
+
+/// big-endian read routines
+impl<'a> ReadCursor<'a> {
+    pub fn read_u16_be(&mut self) -> Result<u16, ReadError> {
+        let high = self.read_u8()? as u16;
+        let low = self.read_u8()? as u16;
+        Ok(high << 8 | low)
+    }
+
+    pub fn read_i16_be(&mut self) -> Result<i16, ReadError> {
+        self.read_u16_be().map(|x| x as i16)
+    }
+
+    pub fn read_u32_be(&mut self) -> Result<u32, ReadError> {
+        let high = self.read_u16_be()? as u32;
+        let low = self.read_u16_be()? as u32;
+        Ok(high << 16 | low)
+    }
+
+    pub fn read_i32_be(&mut self) -> Result<i32, ReadError> {
+        self.read_u32_be().map(|x| x as i32)
+    }
+
+    pub fn read_u64_be(&mut self) -> Result<u64, ReadError> {
+        let high = self.read_u32_be()? as u64;
+        let low = self.read_u32_be()? as u64;
+        Ok(high << 32 | low)
+    }
+
+    pub fn read_i64_be(&mut self) -> Result<i64, ReadError> {
+        self.read_u64_be().map(|x| x as i64)
     }
 }
 
@@ -173,5 +209,26 @@ mod tests {
         let mut cursor = ReadCursor::new(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F]);
         let value = cursor.read_f64_le().unwrap();
         assert!(value.is_nan());
+    }
+
+    #[test]
+    fn can_read_u16_be() {
+        let mut cursor = ReadCursor::new(&[0xCA, 0xFE]);
+        assert_eq!(cursor.read_u16_be().unwrap(), 0xCAFE);
+        assert_eq!(cursor.remaining(), 0);
+    }
+
+    #[test]
+    fn can_read_u32_lb() {
+        let mut cursor = ReadCursor::new(&[0xDD, 0xCC, 0xBB, 0xAA]);
+        assert_eq!(cursor.read_u32_be().unwrap(), 0xDDCCBBAA);
+        assert_eq!(cursor.remaining(), 0);
+    }
+
+    #[test]
+    fn can_read_u64_be() {
+        let mut cursor = ReadCursor::new(&[0x01, 0x00, 0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA]);
+        assert_eq!(cursor.read_u64_be().unwrap(), 0x0100FFEEDDCCBBAA);
+        assert_eq!(cursor.remaining(), 0);
     }
 }
