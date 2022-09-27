@@ -12,14 +12,17 @@ pub struct ReadError;
 /// Error when asserting that there are no remaining bytes
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct TrailingBytes {
-    pub count: usize,
+    /// number of non-zero trailing bytes
+    pub count: core::num::NonZeroUsize,
 }
 
 impl<'a> ReadCursor<'a> {
+    /// Construct a cursor from a borrowed slice
     pub fn new(input: &'a [u8]) -> Self {
         Self { pos: 0, input }
     }
 
+    /// Read a single unsigned byte from the cursor
     pub fn read_u8(&mut self) -> Result<u8, ReadError> {
         match self.input.get(self.pos) {
             Some(x) => {
@@ -31,20 +34,23 @@ impl<'a> ReadCursor<'a> {
         }
     }
 
+    /// Expect the cursor to be empty or return and error indicating how many trailing
+    /// bytes are present
     pub fn expect_empty(&self) -> Result<(), TrailingBytes> {
-        if self.is_empty() {
-            Ok(())
-        } else {
-            Err(TrailingBytes {
-                count: self.remaining(),
-            })
+        let remaining = self.remaining();
+        match core::num::NonZeroUsize::new(remaining) {
+            None => Ok(()),
+            Some(x) => Err(TrailingBytes { count: x }),
         }
     }
 
+    /// Return the number of bytes that remaining to be read
     pub fn remaining(&self) -> usize {
         self.input.len().saturating_sub(self.pos)
     }
 
+    /// Perform a transaction on the buffer, returning it to its initial
+    /// state if an error occurs
     pub fn transaction<T, R, E>(&mut self, mut read: T) -> Result<R, E>
     where
         T: FnMut(&mut ReadCursor) -> Result<R, E>,
@@ -58,10 +64,12 @@ impl<'a> ReadCursor<'a> {
         result
     }
 
+    /// Return true if there are no more bytes remaining to be read
     pub fn is_empty(&self) -> bool {
         self.remaining() == 0
     }
 
+    /// Read the rest of the buffer as a borrowed slice
     pub fn read_all(&mut self) -> &'a [u8] {
         match self.input.get(self.pos..) {
             None => &[],
@@ -72,6 +80,7 @@ impl<'a> ReadCursor<'a> {
         }
     }
 
+    /// Read a count of bytes as a borrowed slice
     pub fn read_bytes(&mut self, count: usize) -> Result<&'a [u8], ReadError> {
         let end = self.pos.checked_add(count).ok_or(ReadError)?;
         let ret = self.input.get(self.pos..end).ok_or(ReadError)?;
@@ -82,32 +91,38 @@ impl<'a> ReadCursor<'a> {
 
 /// little-endian read routines
 impl<'a> ReadCursor<'a> {
+    /// Read a u16 from a little-endian representation
     pub fn read_u16_le(&mut self) -> Result<u16, ReadError> {
         let low = self.read_u8()? as u16;
         let high = self.read_u8()? as u16;
         Ok(high << 8 | low)
     }
 
+    /// Read a i16 from a little-endian representation
     pub fn read_i16_le(&mut self) -> Result<i16, ReadError> {
         self.read_u16_le().map(|x| x as i16)
     }
 
+    /// Read a u32 from a little-endian representation
     pub fn read_u32_le(&mut self) -> Result<u32, ReadError> {
         let low = self.read_u16_le()? as u32;
         let high = self.read_u16_le()? as u32;
         Ok(high << 16 | low)
     }
 
+    /// Read a i32 from a little-endian representation
     pub fn read_i32_le(&mut self) -> Result<i32, ReadError> {
         self.read_u32_le().map(|x| x as i32)
     }
 
+    /// Read a 48-bit unsigned number from a little-endian representation, store it in the first 6 bytes of a u64
     pub fn read_u48_le(&mut self) -> Result<u64, ReadError> {
         let low = self.read_u32_le()? as u64;
         let high = self.read_u16_le()? as u64;
         Ok(high << 32 | low)
     }
 
+    /// Read a u64 number from a little-endian representation
     pub fn read_u64_le(&mut self) -> Result<u64, ReadError> {
         let low = self.read_u32_le()? as u64;
         let high = self.read_u32_le()? as u64;
@@ -115,14 +130,17 @@ impl<'a> ReadCursor<'a> {
         Ok(high << 32 | low)
     }
 
+    /// Read a i64 number from a little-endian representation
     pub fn read_i64_le(&mut self) -> Result<i64, ReadError> {
         self.read_u64_le().map(|x| x as i64)
     }
 
+    /// Read an IEEE-754 f32 from a little-endian representation
     pub fn read_f32_le(&mut self) -> Result<f32, ReadError> {
         Ok(f32::from_bits(self.read_u32_le()?))
     }
 
+    /// Read an IEEE-754 f64 from a little-endian representation
     pub fn read_f64_le(&mut self) -> Result<f64, ReadError> {
         Ok(f64::from_bits(self.read_u64_le()?))
     }
@@ -130,32 +148,38 @@ impl<'a> ReadCursor<'a> {
 
 /// big-endian read routines
 impl<'a> ReadCursor<'a> {
+    /// Read a u16 from a big-endian representation
     pub fn read_u16_be(&mut self) -> Result<u16, ReadError> {
         let high = self.read_u8()? as u16;
         let low = self.read_u8()? as u16;
         Ok(high << 8 | low)
     }
 
+    /// Read a i16 from a big-endian representation
     pub fn read_i16_be(&mut self) -> Result<i16, ReadError> {
         self.read_u16_be().map(|x| x as i16)
     }
 
+    /// Read a u32 from a big-endian representation
     pub fn read_u32_be(&mut self) -> Result<u32, ReadError> {
         let high = self.read_u16_be()? as u32;
         let low = self.read_u16_be()? as u32;
         Ok(high << 16 | low)
     }
 
+    /// Read a i32 from a big-endian representation
     pub fn read_i32_be(&mut self) -> Result<i32, ReadError> {
         self.read_u32_be().map(|x| x as i32)
     }
 
+    /// Read a u64 from a big-endian representation
     pub fn read_u64_be(&mut self) -> Result<u64, ReadError> {
         let high = self.read_u32_be()? as u64;
         let low = self.read_u32_be()? as u64;
         Ok(high << 32 | low)
     }
 
+    /// Read a i64 from a big-endian representation
     pub fn read_i64_be(&mut self) -> Result<i64, ReadError> {
         self.read_u64_be().map(|x| x as i64)
     }

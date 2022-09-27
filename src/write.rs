@@ -13,24 +13,38 @@ pub enum WriteError {
     /// Numeric overflow occurred in a write or seek
     NumericOverflow,
     /// Attempted to write beyond the range of the underlying buffer
-    WriteOverflow { remaining: usize, written: usize },
+    WriteOverflow {
+        /// number of bytes remaining to be written
+        remaining: usize,
+        /// number of bytes requested to be written
+        written: usize,
+    },
     /// Attempted to seek to a position larger than the length of the buffer
-    BadSeek { length: usize, pos: usize },
+    BadSeek {
+        /// length of the underling buffer
+        length: usize,
+        /// requested seek position
+        pos: usize,
+    },
 }
 
 impl<'a> WriteCursor<'a> {
+    /// Construct a cursor from a borrowed mutable slice
     pub fn new(dest: &'a mut [u8]) -> WriteCursor<'a> {
         WriteCursor { dest, pos: 0 }
     }
 
+    /// Current position of the cursor within the underlying slice
     pub fn position(&self) -> usize {
         self.pos
     }
 
+    /// Get a range within the underlying slice
     pub fn get(&self, range: core::ops::Range<usize>) -> Option<&[u8]> {
         self.dest.get(range)
     }
 
+    /// Advance the cursor a count of bytes
     pub fn skip(&mut self, count: usize) -> Result<(), WriteError> {
         let new_pos = self
             .pos
@@ -39,6 +53,7 @@ impl<'a> WriteCursor<'a> {
         self.seek_to(new_pos)
     }
 
+    /// Seek the cursor to an absolute position within the underlying slice
     pub fn seek_to(&mut self, pos: usize) -> Result<(), WriteError> {
         if self.dest.len() < pos {
             return Err(WriteError::BadSeek {
@@ -50,6 +65,8 @@ impl<'a> WriteCursor<'a> {
         Ok(())
     }
 
+    /// Perform a write transaction which returns the cursor to the original
+    /// position if an error occurs
     pub fn transaction<T, R>(&mut self, write: T) -> Result<R, WriteError>
     where
         T: Fn(&mut WriteCursor) -> Result<R, WriteError>,
@@ -63,6 +80,9 @@ impl<'a> WriteCursor<'a> {
         result
     }
 
+    /// Perform a write transaction at particular position. The cursor is always
+    /// returned to its original position regardless of the success or failure of
+    /// the operation
     pub fn at_pos<T, R>(&mut self, pos: usize, write: T) -> Result<R, WriteError>
     where
         T: Fn(&mut WriteCursor) -> Result<R, WriteError>,
@@ -75,10 +95,12 @@ impl<'a> WriteCursor<'a> {
         result
     }
 
+    /// Return the data that has been written so far as a borrowed slice
     pub fn written(&self) -> &[u8] {
         self.dest.get(0..self.pos).unwrap_or(&[])
     }
 
+    /// Return the data that has been written since a particular write position
     pub fn written_since(&'a self, pos: usize) -> Result<&'a [u8], WriteError> {
         match self.dest.get(pos..self.pos) {
             Some(x) => Ok(x),
@@ -86,10 +108,12 @@ impl<'a> WriteCursor<'a> {
         }
     }
 
+    /// Number of bytes remaining to be written
     pub fn remaining(&self) -> usize {
         self.dest.len().saturating_sub(self.pos)
     }
 
+    /// Write a slice of bytes to the cursor
     pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), WriteError> {
         let new_pos = self
             .pos
@@ -108,6 +132,7 @@ impl<'a> WriteCursor<'a> {
         Ok(())
     }
 
+    /// Write a single u8 to the cursor
     pub fn write_u8(&mut self, value: u8) -> Result<(), WriteError> {
         let new_pos = self.pos.checked_add(1).ok_or(WriteError::NumericOverflow)?;
         match self.dest.get_mut(self.pos) {
@@ -126,31 +151,38 @@ impl<'a> WriteCursor<'a> {
 
 /// little-endian write routines
 impl<'a> WriteCursor<'a> {
+    /// Write a u16 in little-endian format
     pub fn write_u16_le(&mut self, value: u16) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
+    /// Write a i16 in little-endian format
     pub fn write_i16_le(&mut self, value: i16) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
+    /// Write a u32 in little-endian format
     pub fn write_u32_le(&mut self, value: u32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
+    /// Write a i32 in little-endian format
     pub fn write_i32_le(&mut self, value: i32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
+    /// Write the lower 6-bytes of a u64 (u48) in little-endian format
     pub fn write_u48_le(&mut self, value: u64) -> Result<(), WriteError> {
         let bytes = value.to_le_bytes();
         self.write_bytes(&bytes[0..6])
     }
 
+    /// Write an IEEE-754 f32 in little endian format
     pub fn write_f32_le(&mut self, value: f32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
+    /// Write an IEEE-754 f64 in little endian format
     pub fn write_f64_le(&mut self, value: f64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
@@ -158,6 +190,7 @@ impl<'a> WriteCursor<'a> {
 
 /// big-endian write routines
 impl<'a> WriteCursor<'a> {
+    /// Write a u16 in big-endian format
     pub fn write_u16_be(&mut self, value: u16) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
