@@ -12,8 +12,10 @@ pub struct WriteCursor<'a> {
 pub enum WriteError {
     /// Numeric overflow occurred in a write or seek
     NumericOverflow,
-    /// Attempted to write or seek beyond the range of the underlying buffer
-    Overflow { length: usize, pos: usize },
+    /// Attempted to write beyond the range of the underlying buffer
+    WriteOverflow { remaining: usize, written: usize },
+    /// Attempted to seek to a position larger than the length of the buffer
+    BadSeek { length: usize, pos: usize },
 }
 
 impl<'a> WriteCursor<'a> {
@@ -34,19 +36,12 @@ impl<'a> WriteCursor<'a> {
             .pos
             .checked_add(count)
             .ok_or(WriteError::NumericOverflow)?;
-        if new_pos > self.dest.len() {
-            return Err(WriteError::Overflow {
-                length: self.dest.len(),
-                pos: new_pos,
-            });
-        }
-        self.pos = new_pos;
-        Ok(())
+        self.seek_to(new_pos)
     }
 
     pub fn seek_to(&mut self, pos: usize) -> Result<(), WriteError> {
         if self.dest.len() < pos {
-            return Err(WriteError::Overflow {
+            return Err(WriteError::BadSeek {
                 length: self.dest.len(),
                 pos,
             });
@@ -73,7 +68,7 @@ impl<'a> WriteCursor<'a> {
         T: Fn(&mut WriteCursor) -> Result<R, WriteError>,
     {
         let start = self.pos;
-        self.pos = pos;
+        self.seek_to(pos)?;
         let result = write(self);
         // no matter what happens, go back to the starting position
         self.pos = start;
@@ -103,9 +98,9 @@ impl<'a> WriteCursor<'a> {
         match self.dest.get_mut(self.pos..new_pos) {
             Some(x) => x.copy_from_slice(bytes),
             None => {
-                return Err(WriteError::Overflow {
-                    length: self.dest.len(),
-                    pos: new_pos,
+                return Err(WriteError::WriteOverflow {
+                    remaining: self.remaining(),
+                    written: bytes.len(),
                 })
             }
         }
@@ -121,9 +116,9 @@ impl<'a> WriteCursor<'a> {
                 self.pos = new_pos;
                 Ok(())
             }
-            None => Err(WriteError::Overflow {
-                length: self.dest.len(),
-                pos: self.pos,
+            None => Err(WriteError::WriteOverflow {
+                remaining: 0,
+                written: 1,
             }),
         }
     }
@@ -171,52 +166,56 @@ impl<'a> WriteCursor<'a> {
 #[cfg(test)]
 mod test {
 
-    mod write {
-        use super::super::*;
+    use super::*;
 
-        #[test]
-        fn transaction_rolls_back_position_on_failure() {
-            let mut buffer = [0u8; 5];
-            let mut cursor = WriteCursor::new(&mut buffer);
+    #[test]
+    fn transaction_rolls_back_position_on_failure() {
+        let mut buffer = [0u8; 5];
+        let mut cursor = WriteCursor::new(&mut buffer);
 
-            cursor.transaction(|cur| cur.write_u16_le(0xCAFE)).unwrap();
+        cursor.transaction(|cur| cur.write_u16_le(0xCAFE)).unwrap();
 
-            let result = cursor.transaction(|cur| {
-                cur.write_u16_le(0xDEAD)?;
-                cur.write_u16_le(0xBEEF) // no room for this
-            });
+        let result = cursor.transaction(|cur| {
+            cur.write_u16_le(0xDEAD)?;
+            cur.write_u16_le(0xBEEF) // no room for this
+        });
 
-            assert_eq!(result, Err(WriteError::Overflow { length: 5, pos: 6 }));
-            assert_eq!(cursor.written(), &[0xFE, 0xCA]);
-        }
+        assert_eq!(
+            result,
+            Err(WriteError::WriteOverflow {
+                remaining: 1,
+                written: 2
+            })
+        );
+        assert_eq!(cursor.written(), &[0xFE, 0xCA]);
+    }
 
-        #[test]
-        fn from_pos_seeks_back_to_original_position_on_success() {
-            let mut buffer = [0u8; 3];
-            let mut cursor = WriteCursor::new(&mut buffer);
+    #[test]
+    fn from_pos_seeks_back_to_original_position_on_success() {
+        let mut buffer = [0u8; 3];
+        let mut cursor = WriteCursor::new(&mut buffer);
 
-            cursor.skip(2).unwrap();
-            cursor.write_u8(0xFF).unwrap();
+        cursor.skip(2).unwrap();
+        cursor.write_u8(0xFF).unwrap();
 
-            cursor.at_pos(0, |cur| cur.write_u16_le(0xCAFE)).unwrap();
+        cursor.at_pos(0, |cur| cur.write_u16_le(0xCAFE)).unwrap();
 
-            assert_eq!(cursor.written(), &[0xFE, 0xCA, 0xFF]);
-        }
+        assert_eq!(cursor.written(), &[0xFE, 0xCA, 0xFF]);
+    }
 
-        #[test]
-        fn write_at_seeks_back_to_original_position_on_failure() {
-            let mut buffer = [0u8; 3];
-            let mut cursor = WriteCursor::new(&mut buffer);
+    #[test]
+    fn write_at_seeks_back_to_original_position_on_failure() {
+        let mut buffer = [0u8; 3];
+        let mut cursor = WriteCursor::new(&mut buffer);
 
-            cursor.skip(2).unwrap();
-            cursor.write_u8(0xFF).unwrap();
+        cursor.skip(2).unwrap();
+        cursor.write_u8(0xFF).unwrap();
 
-            assert_eq!(
-                cursor.at_pos(5, |cur| cur.write_u8(0xAA)),
-                Err(WriteError::Overflow { length: 3, pos: 5 })
-            );
+        assert_eq!(
+            cursor.at_pos(5, |cur| cur.write_u8(0xAA)),
+            Err(WriteError::BadSeek { length: 3, pos: 5 })
+        );
 
-            assert_eq!(cursor.written(), &[0x00, 0x00, 0xFF]);
-        }
+        assert_eq!(cursor.written(), &[0x00, 0x00, 0xFF]);
     }
 }
