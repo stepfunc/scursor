@@ -20,6 +20,26 @@ impl<'a> WriteCursor<'a> {
         self.pos
     }
 
+    pub fn get(&self, range: core::ops::Range<usize>) -> Option<&[u8]> {
+        self.dest.get(range)
+    }
+
+    pub fn seek_from_current(&mut self, count: usize) -> Result<(), WriteError> {
+        if self.remaining() < count {
+            return Err(WriteError);
+        }
+        self.pos = self.pos.checked_add(count).ok_or(WriteError)?;
+        Ok(())
+    }
+
+    pub fn seek_from_start(&mut self, count: usize) -> Result<(), WriteError> {
+        if self.dest.len() < count {
+            return Err(WriteError);
+        }
+        self.pos = count;
+        Ok(())
+    }
+
     pub fn transaction<T, R>(&mut self, write: T) -> Result<R, WriteError>
     where
         T: Fn(&mut WriteCursor) -> Result<R, WriteError>,
@@ -126,6 +146,13 @@ impl<'a> WriteCursor<'a> {
 
     pub fn write_f64_le(&mut self, value: f64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
+    }
+}
+
+/// big-endian write routines
+impl<'a> WriteCursor<'a> {
+    pub fn write_u16_be(&mut self, value: u16) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
     }
 }
 
