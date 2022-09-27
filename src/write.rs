@@ -7,9 +7,14 @@ pub struct WriteCursor<'a> {
     pos: usize,
 }
 
-/// Error type returned when insufficient space exists to performed the requested write
+/// Error type returned when a seek is requested beyond the bounds of the buffer or numeric range
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct WriteError;
+pub enum WriteError {
+    /// Numeric overflow occurred in a write or seek
+    NumericOverflow,
+    /// Attempted to write or seek beyond the range of the underlying buffer
+    Overflow { length: usize, pos: usize },
+}
 
 impl<'a> WriteCursor<'a> {
     pub fn new(dest: &'a mut [u8]) -> WriteCursor<'a> {
@@ -24,19 +29,29 @@ impl<'a> WriteCursor<'a> {
         self.dest.get(range)
     }
 
-    pub fn seek_from_current(&mut self, count: usize) -> Result<(), WriteError> {
-        if self.remaining() < count {
-            return Err(WriteError);
+    pub fn skip(&mut self, count: usize) -> Result<(), WriteError> {
+        let new_pos = self
+            .pos
+            .checked_add(count)
+            .ok_or(WriteError::NumericOverflow)?;
+        if new_pos > self.dest.len() {
+            return Err(WriteError::Overflow {
+                length: self.dest.len(),
+                pos: new_pos,
+            });
         }
-        self.pos = self.pos.checked_add(count).ok_or(WriteError)?;
+        self.pos = new_pos;
         Ok(())
     }
 
-    pub fn seek_from_start(&mut self, count: usize) -> Result<(), WriteError> {
-        if self.dest.len() < count {
-            return Err(WriteError);
+    pub fn seek_to(&mut self, pos: usize) -> Result<(), WriteError> {
+        if self.dest.len() < pos {
+            return Err(WriteError::Overflow {
+                length: self.dest.len(),
+                pos,
+            });
         }
-        self.pos = count;
+        self.pos = pos;
         Ok(())
     }
 
@@ -72,7 +87,7 @@ impl<'a> WriteCursor<'a> {
     pub fn written_since(&'a self, pos: usize) -> Result<&'a [u8], WriteError> {
         match self.dest.get(pos..self.pos) {
             Some(x) => Ok(x),
-            None => Err(WriteError),
+            None => Err(WriteError::NumericOverflow),
         }
     }
 
@@ -81,38 +96,35 @@ impl<'a> WriteCursor<'a> {
     }
 
     pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), WriteError> {
-        let new_pos = self.pos.checked_add(bytes.len()).ok_or(WriteError)?;
+        let new_pos = self
+            .pos
+            .checked_add(bytes.len())
+            .ok_or(WriteError::NumericOverflow)?;
         match self.dest.get_mut(self.pos..new_pos) {
             Some(x) => x.copy_from_slice(bytes),
-            None => return Err(WriteError),
+            None => {
+                return Err(WriteError::Overflow {
+                    length: self.dest.len(),
+                    pos: new_pos,
+                })
+            }
         }
-        self.pos = new_pos;
-        Ok(())
-    }
-
-    pub fn skip(&mut self, count: usize) -> Result<(), WriteError> {
-        let new_pos = match self.pos.checked_add(count) {
-            Some(x) => x,
-            None => return Err(WriteError),
-        };
-
-        if new_pos > self.dest.len() {
-            return Err(WriteError);
-        }
-
         self.pos = new_pos;
         Ok(())
     }
 
     pub fn write_u8(&mut self, value: u8) -> Result<(), WriteError> {
-        let new_pos = self.pos.checked_add(1).ok_or(WriteError)?;
+        let new_pos = self.pos.checked_add(1).ok_or(WriteError::NumericOverflow)?;
         match self.dest.get_mut(self.pos) {
             Some(x) => {
                 *x = value;
                 self.pos = new_pos;
                 Ok(())
             }
-            None => Err(WriteError),
+            None => Err(WriteError::Overflow {
+                length: self.dest.len(),
+                pos: self.pos,
+            }),
         }
     }
 }
@@ -137,7 +149,7 @@ impl<'a> WriteCursor<'a> {
 
     pub fn write_u48_le(&mut self, value: u64) -> Result<(), WriteError> {
         let bytes = value.to_le_bytes();
-        self.write_bytes(bytes.get(0..6).ok_or(WriteError)?)
+        self.write_bytes(&bytes[0..6])
     }
 
     pub fn write_f32_le(&mut self, value: f32) -> Result<(), WriteError> {
@@ -174,7 +186,7 @@ mod test {
                 cur.write_u16_le(0xBEEF) // no room for this
             });
 
-            assert_eq!(result, Err(WriteError));
+            assert_eq!(result, Err(WriteError::Overflow { length: 5, pos: 6 }));
             assert_eq!(cursor.written(), &[0xFE, 0xCA]);
         }
 
@@ -199,7 +211,10 @@ mod test {
             cursor.skip(2).unwrap();
             cursor.write_u8(0xFF).unwrap();
 
-            assert_eq!(cursor.at_pos(5, |cur| cur.write_u8(0xAA)), Err(WriteError));
+            assert_eq!(
+                cursor.at_pos(5, |cur| cur.write_u8(0xAA)),
+                Err(WriteError::Overflow { length: 3, pos: 5 })
+            );
 
             assert_eq!(cursor.written(), &[0x00, 0x00, 0xFF]);
         }
