@@ -1,15 +1,15 @@
-/// custom read-only cursor
+/// Secure read-only cursor
 #[derive(Copy, Clone, Debug)]
 pub struct ReadCursor<'a> {
     pos: usize,
     input: &'a [u8],
 }
 
-/// error returned when insufficient data exists to deserialize requested type
+/// Error returned when insufficient data exists to deserialize requested type
 #[derive(Copy, Clone, Debug)]
 pub struct ReadError;
 
-/// error returned when insufficient data exists to deserialize requested type
+/// Error when asserting that there are no remaining bytes
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct TrailingBytes {
     pub count: usize,
