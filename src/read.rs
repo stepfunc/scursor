@@ -9,6 +9,10 @@ pub struct ReadCursor<'a> {
 #[derive(Copy, Clone, Debug)]
 pub struct ReadError;
 
+/// error returned when insufficient data exists to deserialize requested type
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct TrailingBytes(usize);
+
 impl<'a> ReadCursor<'a> {
     pub fn new(input: &'a [u8]) -> Self {
         Self { pos: 0, input }
@@ -22,6 +26,14 @@ impl<'a> ReadCursor<'a> {
                 Ok(*x)
             }
             None => Err(ReadError),
+        }
+    }
+
+    pub fn expect_empty(&self) -> Result<(), TrailingBytes> {
+        if self.is_empty() {
+            Ok(())
+        } else {
+            Err(TrailingBytes(self.remaining()))
         }
     }
 
