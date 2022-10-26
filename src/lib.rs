@@ -4,6 +4,7 @@
 //! * recursion-free
 //! * no_std
 //! * panic-free API
+//! * support for transactions
 #![no_std]
 #![deny(
     dead_code,
