@@ -69,7 +69,7 @@ impl<'a> WriteCursor<'a> {
     /// position if an error occurs
     pub fn transaction<T, R>(&mut self, write: T) -> Result<R, WriteError>
     where
-        T: Fn(&mut WriteCursor) -> Result<R, WriteError>,
+        T: FnOnce(&mut WriteCursor) -> Result<R, WriteError>,
     {
         let start = self.pos;
         let result = write(self);

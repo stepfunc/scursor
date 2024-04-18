@@ -58,9 +58,9 @@ impl<'a> ReadCursor<'a> {
 
     /// Perform a transaction on the buffer, returning it to its initial
     /// state if an error occurs
-    pub fn transaction<T, R, E>(&mut self, mut read: T) -> Result<R, E>
+    pub fn transaction<T, R, E>(&mut self, read: T) -> Result<R, E>
     where
-        T: FnMut(&mut ReadCursor) -> Result<R, E>,
+        T: FnOnce(&mut ReadCursor) -> Result<R, E>,
     {
         let start = self.pos;
         let result = read(self);
