@@ -7,7 +7,17 @@ description = "Secure cursor library with support for read and write transaction
 repository = "https://github.com/stepfunc/scursor"
 readme = "README.md"
 
+[lints.rust]
+unsafe_code = "forbid"
+non_ascii_idents = "deny"
+unreachable_pub = "deny"
+trivial_casts = "deny"
+missing_docs = "deny"
+warnings = "deny"
+unused = "deny"
+missing_copy_implementations = "deny"
 
+[lints.clippy]
 
 
 
