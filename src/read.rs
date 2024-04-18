@@ -44,9 +44,16 @@ impl<'a> ReadCursor<'a> {
         }
     }
 
-    /// Return the number of bytes that remaining to be read
+    /// Return the number of bytes remaining to be read
     pub fn remaining(&self) -> usize {
         self.input.len().saturating_sub(self.pos)
+    }
+
+    /// Return the position of the cursor within the original input slice
+    ///
+    /// This is synonymous with the number of bytes consumed by the cursor
+    pub fn position(&self) -> usize {
+        self.pos
     }
 
     /// Perform a transaction on the buffer, returning it to its initial
@@ -192,13 +199,17 @@ mod tests {
     #[test]
     fn can_read_u8() {
         let mut cursor = ReadCursor::new(&[0xCA, 0xFE]);
+        assert_eq!(cursor.position(), 0);
 
         assert_eq!(cursor.remaining(), 2);
         assert_eq!(cursor.read_u8().unwrap(), 0xCA);
+        assert_eq!(cursor.position(), 1);
         assert_eq!(cursor.remaining(), 1);
         assert_eq!(cursor.read_u8().unwrap(), 0xFE);
+        assert_eq!(cursor.position(), 2);
         assert_eq!(cursor.remaining(), 0);
         assert!(cursor.read_u8().is_err());
+        assert_eq!(cursor.position(), 2);
         assert_eq!(cursor.remaining(), 0);
     }
 
@@ -207,6 +218,7 @@ mod tests {
         let mut cursor = ReadCursor::new(&[0xCA, 0xFE]);
         assert_eq!(cursor.read_u16_le().unwrap(), 0xFECA);
         assert_eq!(cursor.remaining(), 0);
+        assert_eq!(cursor.position(), 2);
     }
 
     #[test]
@@ -221,6 +233,7 @@ mod tests {
         let mut cursor = ReadCursor::new(&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
         assert_eq!(cursor.read_u48_le().unwrap(), 0x00FFEEDDCCBBAA);
         assert_eq!(cursor.remaining(), 0);
+        assert_eq!(cursor.position(), 6);
     }
 
     #[test]
@@ -228,6 +241,7 @@ mod tests {
         let mut cursor = ReadCursor::new(&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x01]);
         assert_eq!(cursor.read_u64_le().unwrap(), 0x0100FFEEDDCCBBAA);
         assert_eq!(cursor.remaining(), 0);
+        assert_eq!(cursor.position(), 8);
     }
 
     #[test]
