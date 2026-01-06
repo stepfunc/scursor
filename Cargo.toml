@@ -1,6 +1,6 @@
 [package]
 name = "scursor"
-version = "0.2.0"
+version = "0.3.0"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 description = "Secure cursor library with support for read and write transactions"
@@ -14,7 +14,7 @@ unreachable_pub = "deny"
 trivial_casts = "deny"
 missing_docs = "deny"
 warnings = "deny"
-unused = "deny"
+unused = { level = "deny", priority = -1 }
 missing_copy_implementations = "deny"
 
 [lints.clippy]
