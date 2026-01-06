@@ -100,8 +100,8 @@ impl<'a> ReadCursor<'a> {
 impl<'a> ReadCursor<'a> {
     /// Read a u16 from a little-endian representation
     pub fn read_u16_le(&mut self) -> Result<u16, ReadError> {
-        let low = self.read_u8()? as u16;
-        let high = self.read_u8()? as u16;
+        let low: u16 = self.read_u8()?.into();
+        let high: u16 = self.read_u8()?.into();
         Ok(high << 8 | low)
     }
 
@@ -112,8 +112,8 @@ impl<'a> ReadCursor<'a> {
 
     /// Read a u32 from a little-endian representation
     pub fn read_u32_le(&mut self) -> Result<u32, ReadError> {
-        let low = self.read_u16_le()? as u32;
-        let high = self.read_u16_le()? as u32;
+        let low: u32 = self.read_u16_le()?.into();
+        let high: u32 = self.read_u16_le()?.into();
         Ok(high << 16 | low)
     }
 
@@ -124,16 +124,15 @@ impl<'a> ReadCursor<'a> {
 
     /// Read a 48-bit unsigned number from a little-endian representation, store it in the first 6 bytes of a u64
     pub fn read_u48_le(&mut self) -> Result<u64, ReadError> {
-        let low = self.read_u32_le()? as u64;
-        let high = self.read_u16_le()? as u64;
+        let low: u64 = self.read_u32_le()?.into();
+        let high: u64 = self.read_u16_le()?.into();
         Ok(high << 32 | low)
     }
 
     /// Read a u64 number from a little-endian representation
     pub fn read_u64_le(&mut self) -> Result<u64, ReadError> {
-        let low = self.read_u32_le()? as u64;
-        let high = self.read_u32_le()? as u64;
-
+        let low: u64 = self.read_u32_le()?.into();
+        let high: u64 = self.read_u32_le()?.into();
         Ok(high << 32 | low)
     }
 
@@ -169,8 +168,8 @@ impl<'a> ReadCursor<'a> {
 impl<'a> ReadCursor<'a> {
     /// Read a u16 from a big-endian representation
     pub fn read_u16_be(&mut self) -> Result<u16, ReadError> {
-        let high = self.read_u8()? as u16;
-        let low = self.read_u8()? as u16;
+        let high: u16 = self.read_u8()?.into();
+        let low: u16 = self.read_u8()?.into();
         Ok(high << 8 | low)
     }
 
@@ -181,8 +180,8 @@ impl<'a> ReadCursor<'a> {
 
     /// Read a u32 from a big-endian representation
     pub fn read_u32_be(&mut self) -> Result<u32, ReadError> {
-        let high = self.read_u16_be()? as u32;
-        let low = self.read_u16_be()? as u32;
+        let high: u32 = self.read_u16_be()?.into();
+        let low: u32 = self.read_u16_be()?.into();
         Ok(high << 16 | low)
     }
 
@@ -193,8 +192,8 @@ impl<'a> ReadCursor<'a> {
 
     /// Read a u64 from a big-endian representation
     pub fn read_u64_be(&mut self) -> Result<u64, ReadError> {
-        let high = self.read_u32_be()? as u64;
-        let low = self.read_u32_be()? as u64;
+        let high: u64 = self.read_u32_be()?.into();
+        let low: u64 = self.read_u32_be()?.into();
         Ok(high << 32 | low)
     }
 
