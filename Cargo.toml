@@ -14,7 +14,7 @@ unreachable_pub = "deny"
 trivial_casts = "deny"
 missing_docs = "deny"
 warnings = "deny"
-unused = "deny"
+unused = { level = "deny", priority = -1 }
 missing_copy_implementations = "deny"
 
 [lints.clippy]

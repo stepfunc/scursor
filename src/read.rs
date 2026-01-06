@@ -142,6 +142,18 @@ impl<'a> ReadCursor<'a> {
         self.read_u64_le().map(|x| x as i64)
     }
 
+    /// Read a u128 number from a little-endian representation
+    pub fn read_u128_le(&mut self) -> Result<u128, ReadError> {
+        let low: u128 = self.read_u64_le()?.into();
+        let high: u128 = self.read_u64_le()?.into();
+        Ok(high << 64 | low)
+    }
+
+    /// Read a i128 number from a little-endian representation
+    pub fn read_i128_le(&mut self) -> Result<i128, ReadError> {
+        self.read_u128_le().map(|x| x as i128)
+    }
+
     /// Read an IEEE-754 f32 from a little-endian representation
     pub fn read_f32_le(&mut self) -> Result<f32, ReadError> {
         Ok(f32::from_bits(self.read_u32_le()?))
@@ -189,6 +201,18 @@ impl<'a> ReadCursor<'a> {
     /// Read a i64 from a big-endian representation
     pub fn read_i64_be(&mut self) -> Result<i64, ReadError> {
         self.read_u64_be().map(|x| x as i64)
+    }
+
+    /// Read a u128 from a big-endian representation
+    pub fn read_u128_be(&mut self) -> Result<u128, ReadError> {
+        let high: u128 = self.read_u64_be()?.into();
+        let low: u128 = self.read_u64_be()?.into();
+        Ok(high << 64 | low)
+    }
+
+    /// Read a i128 from a big-endian representation
+    pub fn read_i128_be(&mut self) -> Result<i128, ReadError> {
+        self.read_u128_be().map(|x| x as i128)
     }
 }
 
@@ -284,5 +308,33 @@ mod tests {
         let mut cursor = ReadCursor::new(&[0x01, 0x00, 0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA]);
         assert_eq!(cursor.read_u64_be().unwrap(), 0x0100FFEEDDCCBBAA);
         assert_eq!(cursor.remaining(), 0);
+    }
+
+    #[test]
+    fn can_read_u128_le() {
+        let mut cursor = ReadCursor::new(&[
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F,
+        ]);
+        assert_eq!(
+            cursor.read_u128_le().unwrap(),
+            0x0F0E0D0C0B0A09080706050403020100
+        );
+        assert_eq!(cursor.remaining(), 0);
+        assert_eq!(cursor.position(), 16);
+    }
+
+    #[test]
+    fn can_read_u128_be() {
+        let mut cursor = ReadCursor::new(&[
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+            0x0E, 0x0F,
+        ]);
+        assert_eq!(
+            cursor.read_u128_be().unwrap(),
+            0x000102030405060708090A0B0C0D0E0F
+        );
+        assert_eq!(cursor.remaining(), 0);
+        assert_eq!(cursor.position(), 16);
     }
 }

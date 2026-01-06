@@ -186,12 +186,32 @@ impl<'a> WriteCursor<'a> {
     pub fn write_f64_le(&mut self, value: f64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
+
+    /// Write a u128 in little-endian format
+    pub fn write_u128_le(&mut self, value: u128) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_le_bytes())
+    }
+
+    /// Write a i128 in little-endian format
+    pub fn write_i128_le(&mut self, value: i128) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_le_bytes())
+    }
 }
 
 /// big-endian write routines
 impl<'a> WriteCursor<'a> {
     /// Write a u16 in big-endian format
     pub fn write_u16_be(&mut self, value: u16) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write a u128 in big-endian format
+    pub fn write_u128_be(&mut self, value: u128) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write a i128 in big-endian format
+    pub fn write_i128_be(&mut self, value: i128) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 }
@@ -250,5 +270,37 @@ mod test {
         );
 
         assert_eq!(cursor.written(), &[0x00, 0x00, 0xFF]);
+    }
+
+    #[test]
+    fn can_write_u128_le() {
+        let mut buffer = [0u8; 16];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor
+            .write_u128_le(0x0F0E0D0C0B0A09080706050403020100)
+            .unwrap();
+        assert_eq!(
+            cursor.written(),
+            &[
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+                0x0E, 0x0F
+            ]
+        );
+    }
+
+    #[test]
+    fn can_write_u128_be() {
+        let mut buffer = [0u8; 16];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor
+            .write_u128_be(0x000102030405060708090A0B0C0D0E0F)
+            .unwrap();
+        assert_eq!(
+            cursor.written(),
+            &[
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+                0x0E, 0x0F
+            ]
+        );
     }
 }
