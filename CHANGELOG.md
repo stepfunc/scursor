@@ -1,3 +1,8 @@
+### 0.3.0 ###
+* :star: Add u128/i128 read and write support (little-endian and big-endian).
+* Document panic-free design in README.
+* Use `into()` instead of `as` for widening conversions.
+
 ### 0.2.0 ###
 * Specify lints in Cargo.toml instead of lib.rs.
 * :star: Add method to `ReadCursor` to retrieve the position.
