@@ -177,6 +177,16 @@ impl<'a> WriteCursor<'a> {
         self.write_bytes(&bytes[0..6])
     }
 
+    /// Write a u64 in little-endian format
+    pub fn write_u64_le(&mut self, value: u64) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_le_bytes())
+    }
+
+    /// Write a i64 in little-endian format
+    pub fn write_i64_le(&mut self, value: i64) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_le_bytes())
+    }
+
     /// Write an IEEE-754 f32 in little endian format
     pub fn write_f32_le(&mut self, value: f32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
@@ -202,6 +212,16 @@ impl<'a> WriteCursor<'a> {
 impl<'a> WriteCursor<'a> {
     /// Write a u16 in big-endian format
     pub fn write_u16_be(&mut self, value: u16) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write a u64 in big-endian format
+    pub fn write_u64_be(&mut self, value: u64) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write a i64 in big-endian format
+    pub fn write_i64_be(&mut self, value: i64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
@@ -301,6 +321,28 @@ mod test {
                 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
                 0x0E, 0x0F
             ]
+        );
+    }
+
+    #[test]
+    fn can_write_u8() {
+        let mut buffer = [0u8; 2];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_u8(0xCA).unwrap();
+        cursor.write_u8(0xFE).unwrap();
+        assert_eq!(cursor.written(), &[0xCA, 0xFE]);
+    }
+
+    #[test]
+    fn write_overflow_returns_error() {
+        let mut buffer = [0u8; 3];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        assert_eq!(
+            cursor.write_u32_le(0xDEADBEEF),
+            Err(WriteError::WriteOverflow {
+                remaining: 3,
+                written: 4
+            })
         );
     }
 }
