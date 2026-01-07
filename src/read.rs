@@ -94,6 +94,12 @@ impl<'a> ReadCursor<'a> {
         self.pos = end;
         Ok(ret)
     }
+
+    /// Read a fixed-size array of bytes
+    pub fn read_array<const N: usize>(&mut self) -> Result<[u8; N], ReadError> {
+        let bytes = self.read_bytes(N)?;
+        bytes.try_into().map_err(|_| ReadError)
+    }
 }
 
 /// little-endian read routines
@@ -335,5 +341,16 @@ mod tests {
         );
         assert_eq!(cursor.remaining(), 0);
         assert_eq!(cursor.position(), 16);
+    }
+
+    #[test]
+    fn can_read_array() {
+        let mut cursor = ReadCursor::new(&[0xCA, 0xFE, 0xBA, 0xBE, 0x00]);
+        assert_eq!(cursor.read_array::<4>().unwrap(), [0xCA, 0xFE, 0xBA, 0xBE]);
+        assert_eq!(cursor.remaining(), 1);
+        assert_eq!(cursor.position(), 4);
+
+        // insufficient bytes
+        assert!(cursor.read_array::<2>().is_err());
     }
 }
