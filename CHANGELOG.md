@@ -1,3 +1,7 @@
+### 0.4.0 ###
+* :star: Add `read_array` method for const-generic fixed-size arrays.
+* :star: Add u64/i64 write methods (little-endian and big-endian).
+
 ### 0.3.0 ###
 * :star: Add u128/i128 read and write support (little-endian and big-endian).
 * Document panic-free design in README.
