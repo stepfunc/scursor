@@ -14,10 +14,18 @@ unreachable_pub = "deny"
 trivial_casts = "deny"
 missing_docs = "deny"
 warnings = "deny"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 unused = { level = "deny", priority = -1 }
 missing_copy_implementations = "deny"
 
 [lints.clippy]
+panic = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+
+[dev-dependencies]
+kani = "0.0.1"
 
 
 
