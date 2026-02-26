@@ -215,6 +215,11 @@ impl<'a> WriteCursor<'a> {
         self.write_bytes(&value.to_be_bytes())
     }
 
+    /// Write a i16 in big-endian format
+    pub fn write_i16_be(&mut self, value: i16) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
     /// Write a u32 in big-endian format
     pub fn write_u32_be(&mut self, value: u32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
@@ -324,6 +329,14 @@ mod test {
         let mut cursor = WriteCursor::new(&mut buffer);
         cursor.write_u16_be(0xCAFE).unwrap();
         assert_eq!(cursor.written(), &[0xCA, 0xFE]);
+    }
+
+    #[test]
+    fn can_write_i16_be() {
+        let mut buffer = [0u8; 2];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_i16_be(-2).unwrap();
+        assert_eq!(cursor.written(), &[0xFF, 0xFE]);
     }
 
     #[test]
