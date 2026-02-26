@@ -97,8 +97,13 @@ impl<'a> ReadCursor<'a> {
 
     /// Read a fixed-size array of bytes
     pub fn read_array<const N: usize>(&mut self) -> Result<[u8; N], ReadError> {
-        let bytes = self.read_bytes(N)?;
-        bytes.try_into().map_err(|_| ReadError)
+        let chunk = self
+            .input
+            .get(self.pos..)
+            .and_then(|s| s.first_chunk::<N>())
+            .ok_or(ReadError)?;
+        self.pos = self.pos.checked_add(N).ok_or(ReadError)?;
+        Ok(*chunk)
     }
 }
 
@@ -106,67 +111,60 @@ impl<'a> ReadCursor<'a> {
 impl<'a> ReadCursor<'a> {
     /// Read a u16 from a little-endian representation
     pub fn read_u16_le(&mut self) -> Result<u16, ReadError> {
-        let low: u16 = self.read_u8()?.into();
-        let high: u16 = self.read_u8()?.into();
-        Ok(high << 8 | low)
+        Ok(u16::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i16 from a little-endian representation
     pub fn read_i16_le(&mut self) -> Result<i16, ReadError> {
-        self.read_u16_le().map(|x| x as i16)
+        Ok(i16::from_le_bytes(self.read_array()?))
     }
 
     /// Read a u32 from a little-endian representation
     pub fn read_u32_le(&mut self) -> Result<u32, ReadError> {
-        let low: u32 = self.read_u16_le()?.into();
-        let high: u32 = self.read_u16_le()?.into();
-        Ok(high << 16 | low)
+        Ok(u32::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i32 from a little-endian representation
     pub fn read_i32_le(&mut self) -> Result<i32, ReadError> {
-        self.read_u32_le().map(|x| x as i32)
+        Ok(i32::from_le_bytes(self.read_array()?))
     }
 
     /// Read a 48-bit unsigned number from a little-endian representation, store it in the first 6 bytes of a u64
     pub fn read_u48_le(&mut self) -> Result<u64, ReadError> {
-        let low: u64 = self.read_u32_le()?.into();
-        let high: u64 = self.read_u16_le()?.into();
-        Ok(high << 32 | low)
+        let bytes = self.read_array::<6>()?;
+        let mut arr = [0u8; 8];
+        arr[..6].copy_from_slice(&bytes);
+        Ok(u64::from_le_bytes(arr))
     }
 
     /// Read a u64 number from a little-endian representation
     pub fn read_u64_le(&mut self) -> Result<u64, ReadError> {
-        let low: u64 = self.read_u32_le()?.into();
-        let high: u64 = self.read_u32_le()?.into();
-        Ok(high << 32 | low)
+        Ok(u64::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i64 number from a little-endian representation
     pub fn read_i64_le(&mut self) -> Result<i64, ReadError> {
-        self.read_u64_le().map(|x| x as i64)
+        Ok(i64::from_le_bytes(self.read_array()?))
     }
 
     /// Read a u128 number from a little-endian representation
     pub fn read_u128_le(&mut self) -> Result<u128, ReadError> {
-        let low: u128 = self.read_u64_le()?.into();
-        let high: u128 = self.read_u64_le()?.into();
-        Ok(high << 64 | low)
+        Ok(u128::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i128 number from a little-endian representation
     pub fn read_i128_le(&mut self) -> Result<i128, ReadError> {
-        self.read_u128_le().map(|x| x as i128)
+        Ok(i128::from_le_bytes(self.read_array()?))
     }
 
     /// Read an IEEE-754 f32 from a little-endian representation
     pub fn read_f32_le(&mut self) -> Result<f32, ReadError> {
-        Ok(f32::from_bits(self.read_u32_le()?))
+        Ok(f32::from_le_bytes(self.read_array()?))
     }
 
     /// Read an IEEE-754 f64 from a little-endian representation
     pub fn read_f64_le(&mut self) -> Result<f64, ReadError> {
-        Ok(f64::from_bits(self.read_u64_le()?))
+        Ok(f64::from_le_bytes(self.read_array()?))
     }
 }
 
@@ -174,50 +172,42 @@ impl<'a> ReadCursor<'a> {
 impl<'a> ReadCursor<'a> {
     /// Read a u16 from a big-endian representation
     pub fn read_u16_be(&mut self) -> Result<u16, ReadError> {
-        let high: u16 = self.read_u8()?.into();
-        let low: u16 = self.read_u8()?.into();
-        Ok(high << 8 | low)
+        Ok(u16::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i16 from a big-endian representation
     pub fn read_i16_be(&mut self) -> Result<i16, ReadError> {
-        self.read_u16_be().map(|x| x as i16)
+        Ok(i16::from_be_bytes(self.read_array()?))
     }
 
     /// Read a u32 from a big-endian representation
     pub fn read_u32_be(&mut self) -> Result<u32, ReadError> {
-        let high: u32 = self.read_u16_be()?.into();
-        let low: u32 = self.read_u16_be()?.into();
-        Ok(high << 16 | low)
+        Ok(u32::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i32 from a big-endian representation
     pub fn read_i32_be(&mut self) -> Result<i32, ReadError> {
-        self.read_u32_be().map(|x| x as i32)
+        Ok(i32::from_be_bytes(self.read_array()?))
     }
 
     /// Read a u64 from a big-endian representation
     pub fn read_u64_be(&mut self) -> Result<u64, ReadError> {
-        let high: u64 = self.read_u32_be()?.into();
-        let low: u64 = self.read_u32_be()?.into();
-        Ok(high << 32 | low)
+        Ok(u64::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i64 from a big-endian representation
     pub fn read_i64_be(&mut self) -> Result<i64, ReadError> {
-        self.read_u64_be().map(|x| x as i64)
+        Ok(i64::from_be_bytes(self.read_array()?))
     }
 
     /// Read a u128 from a big-endian representation
     pub fn read_u128_be(&mut self) -> Result<u128, ReadError> {
-        let high: u128 = self.read_u64_be()?.into();
-        let low: u128 = self.read_u64_be()?.into();
-        Ok(high << 64 | low)
+        Ok(u128::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i128 from a big-endian representation
     pub fn read_i128_be(&mut self) -> Result<i128, ReadError> {
-        self.read_u128_be().map(|x| x as i128)
+        Ok(i128::from_be_bytes(self.read_array()?))
     }
 }
 
