@@ -1,3 +1,10 @@
+### 0.5.0 ###
+* :star: Optimized all integer and floating point read operations using the stabilized `slice::first_chunk` (Rust 1.77+).
+* :star: Added missing symmetric big-endian read/write routines for `u32`, `i32`, `f32`, `f64`, and `u48`.
+* :star: Integrated formal verification using Kani to mathematically prove panic-freedom.
+* Strictly enforced clippy lints for `panic`, `unwrap`, `expect`, and `indexing_slicing`.
+* Updated documentation and CI badges.
+
 ### 0.4.0 ###
 * :star: Add `read_array` method for const-generic fixed-size arrays.
 * :star: Add u64/i64 write methods (little-endian and big-endian).
