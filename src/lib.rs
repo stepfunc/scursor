@@ -1,10 +1,4 @@
-//! Library for secure reading and writing of binary data:
-//!
-//! * forbid(unsafe_code)
-//! * recursion-free
-//! * no_std
-//! * panic-free API
-//! * support for transactions
+#![doc = include_str!("../README.md")]
 #![no_std]
 
 mod read;

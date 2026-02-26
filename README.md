@@ -1,6 +1,6 @@
 # scursor
 
-![CI](https://github.com/stepfunc/oo_bindgen/workflows/CI/badge.svg)
+![CI](https://github.com/stepfunc/scursor/workflows/CI/badge.svg)
 
 Secure cursor library with support for read and write transactions.
 
