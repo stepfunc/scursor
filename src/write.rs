@@ -173,8 +173,8 @@ impl<'a> WriteCursor<'a> {
 
     /// Write the lower 6-bytes of a u64 (u48) in little-endian format
     pub fn write_u48_le(&mut self, value: u64) -> Result<(), WriteError> {
-        let bytes = value.to_le_bytes();
-        self.write_bytes(&bytes[0..6])
+        let [b0, b1, b2, b3, b4, b5, _, _] = value.to_le_bytes();
+        self.write_bytes(&[b0, b1, b2, b3, b4, b5])
     }
 
     /// Write a u64 in little-endian format
@@ -215,6 +215,22 @@ impl<'a> WriteCursor<'a> {
         self.write_bytes(&value.to_be_bytes())
     }
 
+    /// Write a u32 in big-endian format
+    pub fn write_u32_be(&mut self, value: u32) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write a i32 in big-endian format
+    pub fn write_i32_be(&mut self, value: i32) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write the lower 6-bytes of a u64 (u48) in big-endian format
+    pub fn write_u48_be(&mut self, value: u64) -> Result<(), WriteError> {
+        let [_, _, b2, b3, b4, b5, b6, b7] = value.to_be_bytes();
+        self.write_bytes(&[b2, b3, b4, b5, b6, b7])
+    }
+
     /// Write a u64 in big-endian format
     pub fn write_u64_be(&mut self, value: u64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
@@ -232,6 +248,16 @@ impl<'a> WriteCursor<'a> {
 
     /// Write a i128 in big-endian format
     pub fn write_i128_be(&mut self, value: i128) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write an IEEE-754 f32 in big-endian format
+    pub fn write_f32_be(&mut self, value: f32) -> Result<(), WriteError> {
+        self.write_bytes(&value.to_be_bytes())
+    }
+
+    /// Write an IEEE-754 f64 in big-endian format
+    pub fn write_f64_be(&mut self, value: f64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 }
@@ -290,6 +316,68 @@ mod test {
         );
 
         assert_eq!(cursor.written(), &[0x00, 0x00, 0xFF]);
+    }
+
+    #[test]
+    fn can_write_u16_be() {
+        let mut buffer = [0u8; 2];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_u16_be(0xCAFE).unwrap();
+        assert_eq!(cursor.written(), &[0xCA, 0xFE]);
+    }
+
+    #[test]
+    fn can_write_u32_be() {
+        let mut buffer = [0u8; 4];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_u32_be(0xDEADBEEF).unwrap();
+        assert_eq!(cursor.written(), &[0xDE, 0xAD, 0xBE, 0xEF]);
+    }
+
+    #[test]
+    fn can_write_i32_be() {
+        let mut buffer = [0u8; 4];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_i32_be(-2).unwrap();
+        assert_eq!(cursor.written(), &[0xFF, 0xFF, 0xFF, 0xFE]);
+    }
+
+    #[test]
+    fn can_write_u48_be() {
+        let mut buffer = [0u8; 6];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_u48_be(0x00AABBCCDDEEFF).unwrap();
+        assert_eq!(cursor.written(), &[0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+    }
+
+    #[test]
+    fn can_write_u64_be() {
+        let mut buffer = [0u8; 8];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_u64_be(0x0102030405060708).unwrap();
+        assert_eq!(
+            cursor.written(),
+            &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
+        );
+    }
+
+    #[test]
+    fn can_write_f32_be() {
+        let mut buffer = [0u8; 4];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_f32_be(3.1415927).unwrap();
+        assert_eq!(cursor.written(), &[0x40, 0x49, 0x0F, 0xDB]);
+    }
+
+    #[test]
+    fn can_write_f64_be() {
+        let mut buffer = [0u8; 8];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.write_f64_be(3.141592653589793).unwrap();
+        assert_eq!(
+            cursor.written(),
+            &[0x40, 0x09, 0x21, 0xFB, 0x54, 0x44, 0x2D, 0x18]
+        );
     }
 
     #[test]

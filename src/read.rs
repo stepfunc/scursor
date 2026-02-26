@@ -131,10 +131,8 @@ impl<'a> ReadCursor<'a> {
 
     /// Read a 48-bit unsigned number from a little-endian representation, store it in the first 6 bytes of a u64
     pub fn read_u48_le(&mut self) -> Result<u64, ReadError> {
-        let bytes = self.read_array::<6>()?;
-        let mut arr = [0u8; 8];
-        arr[..6].copy_from_slice(&bytes);
-        Ok(u64::from_le_bytes(arr))
+        let [b0, b1, b2, b3, b4, b5] = self.read_array::<6>()?;
+        Ok(u64::from_le_bytes([b0, b1, b2, b3, b4, b5, 0, 0]))
     }
 
     /// Read a u64 number from a little-endian representation
@@ -190,6 +188,12 @@ impl<'a> ReadCursor<'a> {
         Ok(i32::from_be_bytes(self.read_array()?))
     }
 
+    /// Read a 48-bit unsigned number from a big-endian representation, store it in the first 6 bytes of a u64
+    pub fn read_u48_be(&mut self) -> Result<u64, ReadError> {
+        let [b0, b1, b2, b3, b4, b5] = self.read_array::<6>()?;
+        Ok(u64::from_be_bytes([0, 0, b0, b1, b2, b3, b4, b5]))
+    }
+
     /// Read a u64 from a big-endian representation
     pub fn read_u64_be(&mut self) -> Result<u64, ReadError> {
         Ok(u64::from_be_bytes(self.read_array()?))
@@ -208,6 +212,16 @@ impl<'a> ReadCursor<'a> {
     /// Read a i128 from a big-endian representation
     pub fn read_i128_be(&mut self) -> Result<i128, ReadError> {
         Ok(i128::from_be_bytes(self.read_array()?))
+    }
+
+    /// Read an IEEE-754 f32 from a big-endian representation
+    pub fn read_f32_be(&mut self) -> Result<f32, ReadError> {
+        Ok(f32::from_be_bytes(self.read_array()?))
+    }
+
+    /// Read an IEEE-754 f64 from a big-endian representation
+    pub fn read_f64_be(&mut self) -> Result<f64, ReadError> {
+        Ok(f64::from_be_bytes(self.read_array()?))
     }
 }
 
@@ -282,6 +296,40 @@ mod tests {
         let mut cursor = ReadCursor::new(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8, 0x7F]);
         let value = cursor.read_f64_le().unwrap();
         assert!(value.is_nan());
+    }
+
+    #[test]
+    fn can_read_u48_be() {
+        let mut cursor = ReadCursor::new(&[0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]);
+        assert_eq!(cursor.read_u48_be().unwrap(), 0x00AABBCCDDEEFF);
+        assert_eq!(cursor.remaining(), 0);
+        assert_eq!(cursor.position(), 6);
+    }
+
+    #[test]
+    fn can_read_f32_be() {
+        let mut cursor = ReadCursor::new(&[0x40, 0x49, 0x0F, 0xDB]); // approx pi
+        let val = cursor.read_f32_be().unwrap();
+        assert!((val - 3.14159265).abs() < 1e-6);
+    }
+
+    #[test]
+    fn can_read_f64_be() {
+        let mut cursor = ReadCursor::new(&[0x40, 0x09, 0x21, 0xFB, 0x54, 0x44, 0x2D, 0x18]); // approx pi
+        let val = cursor.read_f64_be().unwrap();
+        assert!((val - 3.141592653589793).abs() < 1e-15);
+    }
+
+    #[test]
+    fn can_read_i32_be() {
+        let mut cursor = ReadCursor::new(&[0xFF, 0xFF, 0xFF, 0xFE]);
+        assert_eq!(cursor.read_i32_be().unwrap(), -2);
+    }
+
+    #[test]
+    fn can_read_i16_be() {
+        let mut cursor = ReadCursor::new(&[0xFF, 0xFD]);
+        assert_eq!(cursor.read_i16_be().unwrap(), -3);
     }
 
     #[test]
