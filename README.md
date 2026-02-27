@@ -12,7 +12,7 @@ The `ReadCursor` uses a consumption model where each read operation advances an 
 within a borrowed byte slice. The key insight is that all operations use inherently safe methods.
 For example, the core `read_array` routine is implemented as:
 
-```rust
+```rust,ignore
 pub fn read_array<const N: usize>(&mut self) -> Result<[u8; N], ReadError> {
     let chunk = self.input.get(self.pos..)
         .and_then(|s| s.first_chunk::<N>()) // non-panicking bounds check
