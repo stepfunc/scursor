@@ -14,7 +14,6 @@ unreachable_pub = "deny"
 trivial_casts = "deny"
 missing_docs = "deny"
 warnings = "deny"
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 unused = { level = "deny", priority = -1 }
 missing_copy_implementations = "deny"
 
@@ -24,8 +23,18 @@ unwrap_used = "deny"
 expect_used = "deny"
 indexing_slicing = "deny"
 
-[dev-dependencies]
-kani = "0.0.1"
+[dependencies]
+no-panic = { version = "0.1", optional = true }
 
+[features]
+# CI-only: fails to link if any public routine can panic. Requires an optimized
+# build (see the `no-panic` profile); debug builds will report false positives.
+no-panic = ["dep:no-panic"]
 
+[[test]]
+name = "no_panic"
+required-features = ["no-panic"]
 
+[profile.no-panic]
+inherits = "release"
+overflow-checks = true

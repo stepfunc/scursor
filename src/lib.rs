@@ -4,8 +4,5 @@
 mod read;
 mod write;
 
-#[cfg(kani)]
-mod proofs;
-
 pub use read::*;
 pub use write::*;
