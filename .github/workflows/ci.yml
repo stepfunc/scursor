@@ -27,6 +27,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --profile no-panic --features no-panic --test no_panic
+      # the check is only meaningful if it still detects a known panic
+      - name: canary must fail to link
+        run: |
+          log=$(mktemp)
+          if cargo test --profile no-panic --features no-panic --test no_panic_canary > "$log" 2>&1; then
+            echo "::error::the no_panic canary linked, so the check is no longer detecting panics"
+            exit 1
+          fi
+          if ! grep -q 'detected panic in function `canary`' "$log"; then
+            cat "$log"
+            echo "::error::the no_panic canary failed for an unexpected reason"
+            exit 1
+          fi
 
   msrv:
     name: MSRV (1.77)

@@ -29,6 +29,7 @@ no-panic = { version = "0.1", optional = true }
 
 [dev-dependencies]
 proptest = "1"
+syn = { version = "2", features = ["full", "visit"] }
 
 [features]
 # CI-only: fails to link if any public routine can panic. Requires an optimized
@@ -37,6 +38,11 @@ no-panic = ["dep:no-panic"]
 
 [[test]]
 name = "no_panic"
+required-features = ["no-panic"]
+
+# must fail to link; CI checks that it does
+[[test]]
+name = "no_panic_canary"
 required-features = ["no-panic"]
 
 [profile.no-panic]

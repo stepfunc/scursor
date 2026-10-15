@@ -71,13 +71,23 @@ cargo test --profile no-panic --features no-panic --test no_panic
 
 What the check does and doesn't tell you:
 
-* It covers every input, not a sample: it checks that no panic path survives in the compiled code.
+* Every public method is checked, for every input. `tests/no_panic.rs` takes the address of each
+  one, which forces the compiler to keep a standalone copy that has to handle any arguments. That
+  copy is what the linker checks. `tests/no_panic_coverage.rs` runs with the normal tests and fails
+  if a public method is missing the annotation or isn't listed in `tests/no_panic.rs`.
+* CI also links `tests/no_panic_canary.rs`, which contains a function that can panic, and
+  requires that link to fail. If a toolchain change ever stopped `no_panic` from detecting
+  panics, CI would fail rather than pass silently.
 * It applies to the configuration that was checked: an optimized build (`opt-level = 3`) with
   `overflow-checks = true` and `panic = "unwind"`. Debug builds and size-optimized builds keep
   some unreachable panic paths, so the check reports false failures there. Those builds are
   still panic-free; they just can't be checked this way.
-* The linker only examines code that is called, so `tests/no_panic.rs` calls every public routine.
-  `tests/no_panic_coverage.rs` fails if a routine is missing the annotation or the call.
+* Outside the check:
+  * Callbacks passed to `transaction` and `at_pos`. Those routines add no panics of their own,
+    but a panic in your callback still propagates.
+  * Derived trait impls (`Clone`, `Copy`, `Debug`, `PartialEq`, `Eq`), which can't be annotated.
+    Derived `Debug` writes to the formatter you supply.
+  * `read_array` is checked for a few sizes (0, 3 and 32). Every size runs the same code.
 * The `no-panic` feature exists for this crate's CI. Don't enable it in your own builds.
 
 ## License
