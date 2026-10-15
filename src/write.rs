@@ -85,7 +85,7 @@ impl<'a> WriteCursor<'a> {
     /// the operation
     pub fn at_pos<T, R>(&mut self, pos: usize, write: T) -> Result<R, WriteError>
     where
-        T: Fn(&mut WriteCursor) -> Result<R, WriteError>,
+        T: FnOnce(&mut WriteCursor) -> Result<R, WriteError>,
     {
         let start = self.pos;
         self.seek_to(pos)?;
@@ -445,5 +445,28 @@ mod test {
                 written: 4
             })
         );
+    }
+
+    #[test]
+    fn at_pos_accepts_fn_once_closure() {
+        // not Copy, so a closure that consumes it is FnOnce only (issue #13)
+        struct Header([u8; 2]);
+        impl Header {
+            fn into_bytes(self) -> [u8; 2] {
+                self.0
+            }
+        }
+
+        let mut buffer = [0u8; 3];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.skip(2).unwrap();
+        cursor.write_u8(0xFF).unwrap();
+
+        let header = Header([0xCA, 0xFE]);
+        cursor
+            .at_pos(0, move |cur| cur.write_bytes(&header.into_bytes()))
+            .unwrap();
+
+        assert_eq!(cursor.written(), &[0xCA, 0xFE, 0xFF]);
     }
 }
