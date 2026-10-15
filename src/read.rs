@@ -15,7 +15,7 @@ pub struct ReadError;
 /// Error when asserting that there are no remaining bytes
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct TrailingBytes {
-    /// number of non-zero trailing bytes
+    /// number of trailing bytes
     pub count: core::num::NonZeroUsize,
 }
 
@@ -64,18 +64,18 @@ impl<'a> ReadCursor<'a> {
         self.pos
     }
 
-    /// Perform a transaction on the buffer, returning it to its initial
+    /// Perform a transaction on the cursor, returning it to its initial
     /// state if an error occurs
     #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn transaction<T, R, E>(&mut self, read: T) -> Result<R, E>
     where
         T: FnOnce(&mut ReadCursor<'a>) -> Result<R, E>,
     {
-        let start = self.pos;
+        let start = *self;
         let result = read(self);
-        // if an error occurs, rollback to the starting position
+        // if an error occurs, rollback to the starting state
         if result.is_err() {
-            self.pos = start;
+            *self = start;
         }
         result
     }
@@ -442,5 +442,20 @@ mod tests {
         assert_eq!(field(&mut cursor).unwrap(), &[0xCA, 0xFE]);
         assert!(field(&mut cursor).is_err());
         assert_eq!(cursor.position(), 3);
+    }
+
+    #[test]
+    fn transaction_restores_cursor_replaced_by_callback() {
+        // issue #16: the callback can replace the cursor, not just advance it
+        let mut cursor = ReadCursor::new(&[0x01, 0x02, 0x03]);
+        let result: Result<(), ReadError> = cursor.transaction(|cur| {
+            cur.read_bytes(2)?;
+            *cur = ReadCursor::new(&[]);
+            Err(ReadError)
+        });
+
+        assert!(result.is_err());
+        assert_eq!(cursor.position(), 0);
+        assert_eq!(cursor.read_all(), &[0x01, 0x02, 0x03]);
     }
 }
