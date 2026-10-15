@@ -60,7 +60,7 @@ impl<'a> ReadCursor<'a> {
     /// state if an error occurs
     pub fn transaction<T, R, E>(&mut self, read: T) -> Result<R, E>
     where
-        T: FnOnce(&mut ReadCursor) -> Result<R, E>,
+        T: FnOnce(&mut ReadCursor<'a>) -> Result<R, E>,
     {
         let start = self.pos;
         let result = read(self);
@@ -390,5 +390,22 @@ mod tests {
 
         // insufficient bytes
         assert!(cursor.read_array::<2>().is_err());
+    }
+
+    #[test]
+    fn transaction_can_return_borrowed_slice() {
+        // length-prefixed field: the slice borrowed from the input must be able
+        // to escape the transaction (issue #12)
+        fn field<'a>(cursor: &mut ReadCursor<'a>) -> Result<&'a [u8], ReadError> {
+            cursor.transaction(|cur| {
+                let len = cur.read_u8()?;
+                cur.read_bytes(len.into())
+            })
+        }
+
+        let mut cursor = ReadCursor::new(&[0x02, 0xCA, 0xFE, 0x05, 0x01]);
+        assert_eq!(field(&mut cursor).unwrap(), &[0xCA, 0xFE]);
+        assert!(field(&mut cursor).is_err());
+        assert_eq!(cursor.position(), 3);
     }
 }
