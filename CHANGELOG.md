@@ -1,6 +1,8 @@
 ### 0.5.1 ###
 * :bug: `ReadCursor::transaction` closures can now return data borrowed from the input. See [#12](https://github.com/stepfunc/scursor/issues/12).
 * :bug: `WriteCursor::at_pos` now accepts `FnOnce` closures. See [#13](https://github.com/stepfunc/scursor/issues/13).
+* :bug: `ReadCursor::transaction` now restores the whole cursor on error, not just its position. See [#16](https://github.com/stepfunc/scursor/issues/16).
+* :book: Documented that write transactions restore only the position, not buffer contents. Corrected the `TrailingBytes::count` and `WriteCursor::written_since` docs.
 * :wrench: Replaced the Kani proofs with link-time `no_panic` checks, run in CI, covering every public routine for all inputs. A test fails if a new routine is left out of the check. A canary test confirms the check still detects panics.
 * :wrench: Added round-trip property tests and a CI workflow.
 * Declared the minimum supported Rust version (1.77).

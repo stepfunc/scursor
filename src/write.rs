@@ -75,6 +75,9 @@ impl<'a> WriteCursor<'a> {
 
     /// Perform a write transaction which returns the cursor to the original
     /// position if an error occurs
+    ///
+    /// Only the position is restored. Bytes written before the error stay in
+    /// the buffer, past the restored position, and are overwritten by later writes.
     #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn transaction<T, R>(&mut self, write: T) -> Result<R, WriteError>
     where
@@ -92,6 +95,9 @@ impl<'a> WriteCursor<'a> {
     /// Perform a write transaction at particular position. The cursor is always
     /// returned to its original position regardless of the success or failure of
     /// the operation
+    ///
+    /// Only the position is restored. If the operation fails partway, the bytes it
+    /// already wrote stay changed, including any before the original position.
     #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn at_pos<T, R>(&mut self, pos: usize, write: T) -> Result<R, WriteError>
     where
@@ -112,6 +118,8 @@ impl<'a> WriteCursor<'a> {
     }
 
     /// Return the data that has been written since a particular write position
+    ///
+    /// Returns [`WriteError::NumericOverflow`] if `pos` is past the current position.
     #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn written_since(&'a self, pos: usize) -> Result<&'a [u8], WriteError> {
         match self.dest.get(pos..self.pos) {
