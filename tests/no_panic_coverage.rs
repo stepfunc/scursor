@@ -1,73 +1,109 @@
-//! Ensures every public routine is annotated with `#[no_panic]` and exercised by
-//! `tests/no_panic.rs`. Functions that are never called are not checked by the
-//! linker, so a missing call would silently skip the check.
+//! Checks that every public method in `src/` is annotated with `no_panic` and
+//! listed in `tests/no_panic.rs`, which only checks the routines it lists.
 
-const DRIVER: &str = include_str!("no_panic.rs");
-const ATTRIBUTE: &str = "#[cfg_attr(feature = \"no-panic\", no_panic)]";
+use std::collections::BTreeSet;
+use std::path::Path;
 
-/// Names of all `pub fn` items in `source`, each paired with whether it is
-/// immediately preceded by the no_panic attribute.
-fn public_fns(source: &str) -> Vec<(String, bool)> {
-    let lines: Vec<&str> = source.lines().map(str::trim).collect();
-    lines
-        .iter()
-        .enumerate()
-        .filter_map(|(i, line)| {
-            let rest = line.strip_prefix("pub fn ")?;
-            let name: String = rest
-                .chars()
-                .take_while(|c| c.is_alphanumeric() || *c == '_')
-                .collect();
-            let annotated = i > 0 && lines[i - 1] == ATTRIBUTE;
-            Some((name, annotated))
-        })
-        .collect()
-}
+use syn::visit::{self, Visit};
+use syn::{Attribute, ImplItem, Meta, Type, Visibility};
 
-/// The body of the driver function `name`, up to the next driver function.
-fn driver_body(name: &str) -> &'static str {
-    let start = DRIVER
-        .find(&format!("fn {name}("))
-        .unwrap_or_else(|| panic!("driver function {name} not found"));
-    let body = &DRIVER[start..];
-    let end = body[1..].find("\nfn ").map_or(body.len(), |i| i + 1);
-    &body[..end]
-}
+/// Public methods found in the library source, with whether each is annotated.
+#[derive(Default)]
+struct PublicMethods(Vec<(String, bool)>);
 
-fn check(source: &str, driver_fn: &str, type_name: &str) {
-    let body = driver_body(driver_fn);
-    let fns = public_fns(source);
-    assert!(!fns.is_empty(), "no public functions found for {type_name}");
+impl<'ast> Visit<'ast> for PublicMethods {
+    fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        if !has_attribute(&item.attrs, "cfg", "test") {
+            visit::visit_item_mod(self, item);
+        }
+    }
 
-    for (name, annotated) in fns {
-        assert!(
-            annotated,
-            "{type_name}::{name} is missing the no_panic attribute"
-        );
-        let called = body.contains(&format!(".{name}("))
-            || body.contains(&format!(".{name}::<"))
-            || body.contains(&format!("{type_name}::{name}("));
-        assert!(
-            called,
-            "{type_name}::{name} is not exercised by {driver_fn} in tests/no_panic.rs"
-        );
+    fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        let Type::Path(owner) = &*item.self_ty else {
+            return;
+        };
+        let owner = &owner.path.segments.last().unwrap().ident;
+        for item in &item.items {
+            if let ImplItem::Fn(f) = item {
+                if matches!(f.vis, Visibility::Public(_)) {
+                    let annotated =
+                        has_attribute(&f.attrs, "cfg_attr", r#"feature="no-panic",no_panic"#);
+                    self.0
+                        .push((format!("{owner}::{}", f.sig.ident), annotated));
+                }
+            }
+        }
     }
 }
 
-#[test]
-fn every_read_cursor_routine_is_checked() {
-    check(
-        include_str!("../src/read.rs"),
-        "exercise_read_cursor",
-        "ReadCursor",
-    );
+/// `Type::routine` paths referenced by the driver.
+#[derive(Default)]
+struct ListedRoutines(BTreeSet<String>);
+
+impl<'ast> Visit<'ast> for ListedRoutines {
+    fn visit_expr_path(&mut self, expr: &'ast syn::ExprPath) {
+        let segments: Vec<_> = expr
+            .path
+            .segments
+            .iter()
+            .map(|s| s.ident.to_string())
+            .collect();
+        if let [.., owner, routine] = segments.as_slice() {
+            self.0.insert(format!("{owner}::{routine}"));
+        }
+        visit::visit_expr_path(self, expr);
+    }
+}
+
+/// True if an attribute is exactly `#[name(args)]`, ignoring whitespace.
+fn has_attribute(attrs: &[Attribute], name: &str, args: &str) -> bool {
+    attrs.iter().any(|attr| match &attr.meta {
+        Meta::List(list) => {
+            list.path.is_ident(name) && list.tokens.to_string().replace(' ', "") == args
+        }
+        _ => false,
+    })
+}
+
+fn parse(path: &Path) -> syn::File {
+    syn::parse_file(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 
 #[test]
-fn every_write_cursor_routine_is_checked() {
-    check(
-        include_str!("../src/write.rs"),
-        "exercise_write_cursor",
-        "WriteCursor",
+fn every_public_routine_is_annotated_and_listed() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+
+    let mut methods = PublicMethods::default();
+    for entry in std::fs::read_dir(root.join("src")).unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|e| e == "rs") {
+            methods.visit_file(&parse(&path));
+        }
+    }
+    assert!(!methods.0.is_empty(), "no public methods found");
+
+    let mut listed = ListedRoutines::default();
+    listed.visit_file(&parse(&root.join("tests/no_panic.rs")));
+
+    let unannotated: Vec<_> = methods
+        .0
+        .iter()
+        .filter(|(_, annotated)| !annotated)
+        .map(|(name, _)| name)
+        .collect();
+    assert!(
+        unannotated.is_empty(),
+        "missing the no_panic attribute: {unannotated:?}"
+    );
+
+    let unlisted: Vec<_> = methods
+        .0
+        .iter()
+        .map(|(name, _)| name)
+        .filter(|name| !listed.0.contains(*name))
+        .collect();
+    assert!(
+        unlisted.is_empty(),
+        "not listed in tests/no_panic.rs: {unlisted:?}"
     );
 }

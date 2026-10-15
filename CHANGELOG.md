@@ -1,7 +1,7 @@
 ### 0.5.1 ###
 * :bug: `ReadCursor::transaction` closures can now return data borrowed from the input. See [#12](https://github.com/stepfunc/scursor/issues/12).
 * :bug: `WriteCursor::at_pos` now accepts `FnOnce` closures. See [#13](https://github.com/stepfunc/scursor/issues/13).
-* :wrench: Replaced the Kani proofs with link-time `no_panic` checks on every public routine, run in CI.
+* :wrench: Replaced the Kani proofs with link-time `no_panic` checks, run in CI, covering every public routine for all inputs. A test fails if a new routine is left out of the check.
 * :wrench: Added round-trip property tests and a CI workflow.
 * Declared the minimum supported Rust version (1.77).
 
