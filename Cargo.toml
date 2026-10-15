@@ -26,6 +26,9 @@ indexing_slicing = "deny"
 [dependencies]
 no-panic = { version = "0.1", optional = true }
 
+[dev-dependencies]
+proptest = "1"
+
 [features]
 # CI-only: fails to link if any public routine can panic. Requires an optimized
 # build (see the `no-panic` profile); debug builds will report false positives.
