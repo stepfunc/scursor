@@ -59,24 +59,26 @@ fn main() {
 }
 ```
 
-## Formal Verification
+## Panic-freedom checks
 
-This library is formally verified to be panic-free using the [Kani Rust Verifier](https://model-checking.github.io/kani/). 
-Kani uses bit-precise model checking to mathematically prove the absence of panics, out-of-bounds 
-accesses, and overflows across all possible execution paths and inputs.
+When the `no-panic` feature is enabled, every public routine is annotated with
+[`no_panic`](https://github.com/dtolnay/no-panic). If the compiled code for a routine still contains a
+path that could panic, the check fails at link time. CI runs it with:
 
-To run the mathematical proofs yourself:
+```bash
+cargo test --profile no-panic --features no-panic --test no_panic
+```
 
-1. **Install Kani**:
-   ```bash
-   cargo install --locked kani-verifier
-   cargo kani setup
-   ```
+What the check does and doesn't tell you:
 
-2. **Run Verification**:
-   ```bash
-   cargo kani
-   ```
+* It covers every input, not a sample: it checks that no panic path survives in the compiled code.
+* It applies to the configuration that was checked: an optimized build (`opt-level = 3`) with
+  `overflow-checks = true` and `panic = "unwind"`. Debug builds and size-optimized builds keep
+  some unreachable panic paths, so the check reports false failures there. Those builds are
+  still panic-free; they just can't be checked this way.
+* The linker only examines code that is called, so `tests/no_panic.rs` calls every public routine.
+  `tests/no_panic_coverage.rs` fails if a routine is missing the annotation or the call.
+* The `no-panic` feature exists for this crate's CI. Don't enable it in your own builds.
 
 ## License
 Licensed under the terms of the MIT or Apache v2 licenses at your choice.

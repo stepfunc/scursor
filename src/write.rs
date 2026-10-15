@@ -1,3 +1,6 @@
+#[cfg(feature = "no-panic")]
+use no_panic::no_panic;
+
 /// Secure write cursor
 ///
 /// Provides routines for incrementally writing to a borrowed slice
@@ -30,21 +33,25 @@ pub enum WriteError {
 
 impl<'a> WriteCursor<'a> {
     /// Construct a cursor from a borrowed mutable slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn new(dest: &'a mut [u8]) -> WriteCursor<'a> {
         WriteCursor { dest, pos: 0 }
     }
 
     /// Current position of the cursor within the underlying slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn position(&self) -> usize {
         self.pos
     }
 
     /// Get a range within the underlying slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn get(&self, range: core::ops::Range<usize>) -> Option<&[u8]> {
         self.dest.get(range)
     }
 
     /// Advance the cursor a count of bytes
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn skip(&mut self, count: usize) -> Result<(), WriteError> {
         let new_pos = self
             .pos
@@ -54,6 +61,7 @@ impl<'a> WriteCursor<'a> {
     }
 
     /// Seek the cursor to an absolute position within the underlying slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn seek_to(&mut self, pos: usize) -> Result<(), WriteError> {
         if self.dest.len() < pos {
             return Err(WriteError::BadSeek {
@@ -67,6 +75,7 @@ impl<'a> WriteCursor<'a> {
 
     /// Perform a write transaction which returns the cursor to the original
     /// position if an error occurs
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn transaction<T, R>(&mut self, write: T) -> Result<R, WriteError>
     where
         T: FnOnce(&mut WriteCursor) -> Result<R, WriteError>,
@@ -83,9 +92,10 @@ impl<'a> WriteCursor<'a> {
     /// Perform a write transaction at particular position. The cursor is always
     /// returned to its original position regardless of the success or failure of
     /// the operation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn at_pos<T, R>(&mut self, pos: usize, write: T) -> Result<R, WriteError>
     where
-        T: Fn(&mut WriteCursor) -> Result<R, WriteError>,
+        T: FnOnce(&mut WriteCursor) -> Result<R, WriteError>,
     {
         let start = self.pos;
         self.seek_to(pos)?;
@@ -96,11 +106,13 @@ impl<'a> WriteCursor<'a> {
     }
 
     /// Return the data that has been written so far as a borrowed slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn written(&self) -> &[u8] {
         self.dest.get(0..self.pos).unwrap_or(&[])
     }
 
     /// Return the data that has been written since a particular write position
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn written_since(&'a self, pos: usize) -> Result<&'a [u8], WriteError> {
         match self.dest.get(pos..self.pos) {
             Some(x) => Ok(x),
@@ -109,11 +121,13 @@ impl<'a> WriteCursor<'a> {
     }
 
     /// Number of bytes remaining to be written
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn remaining(&self) -> usize {
         self.dest.len().saturating_sub(self.pos)
     }
 
     /// Write a slice of bytes to the cursor
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), WriteError> {
         let new_pos = self
             .pos
@@ -133,6 +147,7 @@ impl<'a> WriteCursor<'a> {
     }
 
     /// Write a single u8 to the cursor
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u8(&mut self, value: u8) -> Result<(), WriteError> {
         let new_pos = self.pos.checked_add(1).ok_or(WriteError::NumericOverflow)?;
         match self.dest.get_mut(self.pos) {
@@ -152,57 +167,68 @@ impl<'a> WriteCursor<'a> {
 /// little-endian write routines
 impl<'a> WriteCursor<'a> {
     /// Write a u16 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u16_le(&mut self, value: u16) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write a i16 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i16_le(&mut self, value: i16) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write a u32 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u32_le(&mut self, value: u32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write a i32 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i32_le(&mut self, value: i32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write the lower 6-bytes of a u64 (u48) in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u48_le(&mut self, value: u64) -> Result<(), WriteError> {
         let [b0, b1, b2, b3, b4, b5, _, _] = value.to_le_bytes();
         self.write_bytes(&[b0, b1, b2, b3, b4, b5])
     }
 
     /// Write a u64 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u64_le(&mut self, value: u64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write a i64 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i64_le(&mut self, value: i64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write an IEEE-754 f32 in little endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_f32_le(&mut self, value: f32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write an IEEE-754 f64 in little endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_f64_le(&mut self, value: f64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write a u128 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u128_le(&mut self, value: u128) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
 
     /// Write a i128 in little-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i128_le(&mut self, value: i128) -> Result<(), WriteError> {
         self.write_bytes(&value.to_le_bytes())
     }
@@ -211,57 +237,68 @@ impl<'a> WriteCursor<'a> {
 /// big-endian write routines
 impl<'a> WriteCursor<'a> {
     /// Write a u16 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u16_be(&mut self, value: u16) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write a i16 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i16_be(&mut self, value: i16) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write a u32 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u32_be(&mut self, value: u32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write a i32 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i32_be(&mut self, value: i32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write the lower 6-bytes of a u64 (u48) in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u48_be(&mut self, value: u64) -> Result<(), WriteError> {
         let [_, _, b2, b3, b4, b5, b6, b7] = value.to_be_bytes();
         self.write_bytes(&[b2, b3, b4, b5, b6, b7])
     }
 
     /// Write a u64 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u64_be(&mut self, value: u64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write a i64 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i64_be(&mut self, value: i64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write a u128 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_u128_be(&mut self, value: u128) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write a i128 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_i128_be(&mut self, value: i128) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write an IEEE-754 f32 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_f32_be(&mut self, value: f32) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
 
     /// Write an IEEE-754 f64 in big-endian format
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn write_f64_be(&mut self, value: f64) -> Result<(), WriteError> {
         self.write_bytes(&value.to_be_bytes())
     }
@@ -445,5 +482,28 @@ mod test {
                 written: 4
             })
         );
+    }
+
+    #[test]
+    fn at_pos_accepts_fn_once_closure() {
+        // not Copy, so a closure that consumes it is FnOnce only (issue #13)
+        struct Header([u8; 2]);
+        impl Header {
+            fn into_bytes(self) -> [u8; 2] {
+                self.0
+            }
+        }
+
+        let mut buffer = [0u8; 3];
+        let mut cursor = WriteCursor::new(&mut buffer);
+        cursor.skip(2).unwrap();
+        cursor.write_u8(0xFF).unwrap();
+
+        let header = Header([0xCA, 0xFE]);
+        cursor
+            .at_pos(0, move |cur| cur.write_bytes(&header.into_bytes()))
+            .unwrap();
+
+        assert_eq!(cursor.written(), &[0xCA, 0xFE, 0xFF]);
     }
 }

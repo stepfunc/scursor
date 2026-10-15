@@ -1,3 +1,6 @@
+#[cfg(feature = "no-panic")]
+use no_panic::no_panic;
+
 /// Secure read-only cursor
 #[derive(Copy, Clone, Debug)]
 pub struct ReadCursor<'a> {
@@ -18,11 +21,13 @@ pub struct TrailingBytes {
 
 impl<'a> ReadCursor<'a> {
     /// Construct a cursor from a borrowed slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn new(input: &'a [u8]) -> Self {
         Self { pos: 0, input }
     }
 
     /// Read a single unsigned byte from the cursor
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u8(&mut self) -> Result<u8, ReadError> {
         match self.input.get(self.pos) {
             Some(x) => {
@@ -36,6 +41,7 @@ impl<'a> ReadCursor<'a> {
 
     /// Expect the cursor to be empty or return and error indicating how many trailing
     /// bytes are present
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn expect_empty(&self) -> Result<(), TrailingBytes> {
         let remaining = self.remaining();
         match core::num::NonZeroUsize::new(remaining) {
@@ -45,6 +51,7 @@ impl<'a> ReadCursor<'a> {
     }
 
     /// Return the number of bytes remaining to be read
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn remaining(&self) -> usize {
         self.input.len().saturating_sub(self.pos)
     }
@@ -52,15 +59,17 @@ impl<'a> ReadCursor<'a> {
     /// Return the position of the cursor within the original input slice
     ///
     /// This is synonymous with the number of bytes consumed by the cursor
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn position(&self) -> usize {
         self.pos
     }
 
     /// Perform a transaction on the buffer, returning it to its initial
     /// state if an error occurs
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn transaction<T, R, E>(&mut self, read: T) -> Result<R, E>
     where
-        T: FnOnce(&mut ReadCursor) -> Result<R, E>,
+        T: FnOnce(&mut ReadCursor<'a>) -> Result<R, E>,
     {
         let start = self.pos;
         let result = read(self);
@@ -72,11 +81,13 @@ impl<'a> ReadCursor<'a> {
     }
 
     /// Return true if there are no more bytes remaining to be read
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn is_empty(&self) -> bool {
         self.remaining() == 0
     }
 
     /// Read the rest of the buffer as a borrowed slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_all(&mut self) -> &'a [u8] {
         match self.input.get(self.pos..) {
             None => &[],
@@ -88,6 +99,7 @@ impl<'a> ReadCursor<'a> {
     }
 
     /// Read a count of bytes as a borrowed slice
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_bytes(&mut self, count: usize) -> Result<&'a [u8], ReadError> {
         let end = self.pos.checked_add(count).ok_or(ReadError)?;
         let ret = self.input.get(self.pos..end).ok_or(ReadError)?;
@@ -96,6 +108,7 @@ impl<'a> ReadCursor<'a> {
     }
 
     /// Read a fixed-size array of bytes
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_array<const N: usize>(&mut self) -> Result<[u8; N], ReadError> {
         let chunk = self
             .input
@@ -110,57 +123,68 @@ impl<'a> ReadCursor<'a> {
 /// little-endian read routines
 impl<'a> ReadCursor<'a> {
     /// Read a u16 from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u16_le(&mut self) -> Result<u16, ReadError> {
         Ok(u16::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i16 from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i16_le(&mut self) -> Result<i16, ReadError> {
         Ok(i16::from_le_bytes(self.read_array()?))
     }
 
     /// Read a u32 from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u32_le(&mut self) -> Result<u32, ReadError> {
         Ok(u32::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i32 from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i32_le(&mut self) -> Result<i32, ReadError> {
         Ok(i32::from_le_bytes(self.read_array()?))
     }
 
     /// Read a 48-bit unsigned number from a little-endian representation, store it in the first 6 bytes of a u64
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u48_le(&mut self) -> Result<u64, ReadError> {
         let [b0, b1, b2, b3, b4, b5] = self.read_array::<6>()?;
         Ok(u64::from_le_bytes([b0, b1, b2, b3, b4, b5, 0, 0]))
     }
 
     /// Read a u64 number from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u64_le(&mut self) -> Result<u64, ReadError> {
         Ok(u64::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i64 number from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i64_le(&mut self) -> Result<i64, ReadError> {
         Ok(i64::from_le_bytes(self.read_array()?))
     }
 
     /// Read a u128 number from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u128_le(&mut self) -> Result<u128, ReadError> {
         Ok(u128::from_le_bytes(self.read_array()?))
     }
 
     /// Read a i128 number from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i128_le(&mut self) -> Result<i128, ReadError> {
         Ok(i128::from_le_bytes(self.read_array()?))
     }
 
     /// Read an IEEE-754 f32 from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_f32_le(&mut self) -> Result<f32, ReadError> {
         Ok(f32::from_le_bytes(self.read_array()?))
     }
 
     /// Read an IEEE-754 f64 from a little-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_f64_le(&mut self) -> Result<f64, ReadError> {
         Ok(f64::from_le_bytes(self.read_array()?))
     }
@@ -169,57 +193,68 @@ impl<'a> ReadCursor<'a> {
 /// big-endian read routines
 impl<'a> ReadCursor<'a> {
     /// Read a u16 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u16_be(&mut self) -> Result<u16, ReadError> {
         Ok(u16::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i16 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i16_be(&mut self) -> Result<i16, ReadError> {
         Ok(i16::from_be_bytes(self.read_array()?))
     }
 
     /// Read a u32 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u32_be(&mut self) -> Result<u32, ReadError> {
         Ok(u32::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i32 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i32_be(&mut self) -> Result<i32, ReadError> {
         Ok(i32::from_be_bytes(self.read_array()?))
     }
 
     /// Read a 48-bit unsigned number from a big-endian representation, store it in the first 6 bytes of a u64
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u48_be(&mut self) -> Result<u64, ReadError> {
         let [b0, b1, b2, b3, b4, b5] = self.read_array::<6>()?;
         Ok(u64::from_be_bytes([0, 0, b0, b1, b2, b3, b4, b5]))
     }
 
     /// Read a u64 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u64_be(&mut self) -> Result<u64, ReadError> {
         Ok(u64::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i64 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i64_be(&mut self) -> Result<i64, ReadError> {
         Ok(i64::from_be_bytes(self.read_array()?))
     }
 
     /// Read a u128 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_u128_be(&mut self) -> Result<u128, ReadError> {
         Ok(u128::from_be_bytes(self.read_array()?))
     }
 
     /// Read a i128 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_i128_be(&mut self) -> Result<i128, ReadError> {
         Ok(i128::from_be_bytes(self.read_array()?))
     }
 
     /// Read an IEEE-754 f32 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_f32_be(&mut self) -> Result<f32, ReadError> {
         Ok(f32::from_be_bytes(self.read_array()?))
     }
 
     /// Read an IEEE-754 f64 from a big-endian representation
+    #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn read_f64_be(&mut self) -> Result<f64, ReadError> {
         Ok(f64::from_be_bytes(self.read_array()?))
     }
@@ -390,5 +425,22 @@ mod tests {
 
         // insufficient bytes
         assert!(cursor.read_array::<2>().is_err());
+    }
+
+    #[test]
+    fn transaction_can_return_borrowed_slice() {
+        // length-prefixed field: the slice borrowed from the input must be able
+        // to escape the transaction (issue #12)
+        fn field<'a>(cursor: &mut ReadCursor<'a>) -> Result<&'a [u8], ReadError> {
+            cursor.transaction(|cur| {
+                let len = cur.read_u8()?;
+                cur.read_bytes(len.into())
+            })
+        }
+
+        let mut cursor = ReadCursor::new(&[0x02, 0xCA, 0xFE, 0x05, 0x01]);
+        assert_eq!(field(&mut cursor).unwrap(), &[0xCA, 0xFE]);
+        assert!(field(&mut cursor).is_err());
+        assert_eq!(cursor.position(), 3);
     }
 }

@@ -1,3 +1,10 @@
+### 0.5.1 ###
+* :bug: `ReadCursor::transaction` closures can now return data borrowed from the input. See [#12](https://github.com/stepfunc/scursor/issues/12).
+* :bug: `WriteCursor::at_pos` now accepts `FnOnce` closures. See [#13](https://github.com/stepfunc/scursor/issues/13).
+* :wrench: Replaced the Kani proofs with link-time `no_panic` checks on every public routine, run in CI.
+* :wrench: Added round-trip property tests and a CI workflow.
+* Declared the minimum supported Rust version (1.77).
+
 ### 0.5.0 ###
 * :star: Optimized all integer and floating point read operations using the stabilized `slice::first_chunk` (Rust 1.77+).
 * :star: Added missing symmetric big-endian read/write routines for `u32`, `i32`, `f32`, `f64`, and `u48`.
