@@ -75,6 +75,9 @@ What the check does and doesn't tell you:
   one, which forces the compiler to keep a standalone copy that has to handle any arguments. That
   copy is what the linker checks. `tests/no_panic_coverage.rs` runs with the normal tests and fails
   if a public method is missing the annotation or isn't listed in `tests/no_panic.rs`.
+* CI also links `tests/no_panic_canary.rs`, which contains a function that can panic, and
+  requires that link to fail. If a toolchain change ever stopped `no_panic` from detecting
+  panics, CI would fail rather than pass silently.
 * It applies to the configuration that was checked: an optimized build (`opt-level = 3`) with
   `overflow-checks = true` and `panic = "unwind"`. Debug builds and size-optimized builds keep
   some unreachable panic paths, so the check reports false failures there. Those builds are

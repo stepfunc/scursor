@@ -40,6 +40,11 @@ no-panic = ["dep:no-panic"]
 name = "no_panic"
 required-features = ["no-panic"]
 
+# must fail to link; CI checks that it does
+[[test]]
+name = "no_panic_canary"
+required-features = ["no-panic"]
+
 [profile.no-panic]
 inherits = "release"
 overflow-checks = true
