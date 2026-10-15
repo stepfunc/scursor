@@ -69,17 +69,24 @@ fn parse(path: &Path) -> syn::File {
     syn::parse_file(&std::fs::read_to_string(path).unwrap()).unwrap()
 }
 
+/// Visit every `.rs` file under `dir`, including nested module directories.
+fn visit_dir(dir: &Path, methods: &mut PublicMethods) {
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            visit_dir(&path, methods);
+        } else if path.extension().is_some_and(|e| e == "rs") {
+            methods.visit_file(&parse(&path));
+        }
+    }
+}
+
 #[test]
 fn every_public_routine_is_annotated_and_listed() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
 
     let mut methods = PublicMethods::default();
-    for entry in std::fs::read_dir(root.join("src")).unwrap() {
-        let path = entry.unwrap().path();
-        if path.extension().is_some_and(|e| e == "rs") {
-            methods.visit_file(&parse(&path));
-        }
-    }
+    visit_dir(&root.join("src"), &mut methods);
     assert!(!methods.0.is_empty(), "no public methods found");
 
     let mut listed = ListedRoutines::default();
